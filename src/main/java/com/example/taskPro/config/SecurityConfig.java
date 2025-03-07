@@ -4,6 +4,7 @@ import com.example.taskPro.security.JwtFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -29,8 +30,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()  // Разрешаем доступ к аутентификации
-                        .anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/tasks").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/tasks/{id}").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/tasks/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/tasks/{id}").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/tasks/{id}/status").hasAuthority("USER")
+                        .requestMatchers(HttpMethod.POST, "/tasks/{id}/comments").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/tasks/{id}/assign").hasAuthority("ADMIN")
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

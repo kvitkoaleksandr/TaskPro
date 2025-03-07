@@ -14,15 +14,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    public String register(String email, String password) {
+    public String register(String email, String password, String role) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email уже используется!");
+        }
+
+        Role userRole;
+        try {
+            userRole = Role.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Некорректная роль: " + role);
         }
 
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(password))
-                .role(Role.USER)
+                .role(userRole)
                 .build();
 
         userRepository.save(user);

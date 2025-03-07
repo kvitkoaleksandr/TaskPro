@@ -3,6 +3,9 @@ package com.example.taskPro.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -29,11 +32,14 @@ public class Task {
     @Column(nullable = false)
     private TaskPriority priority;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "executor_id")
     private User executor;
+
+    @ElementCollection
+    private List<String> comments;
 }
