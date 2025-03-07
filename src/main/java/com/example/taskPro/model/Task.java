@@ -1,9 +1,9 @@
 package com.example.taskPro.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -18,9 +18,11 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Название задачи не может быть пустым")
     @Column(nullable = false)
     private String title;
 
+    @NotBlank(message = "Описание задачи не может быть пустым")
     @Column(columnDefinition = "TEXT")
     private String description;
 

@@ -2,7 +2,9 @@ package com.example.taskPro.controller;
 
 import com.example.taskPro.model.Task;
 import com.example.taskPro.service.TaskService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -15,32 +17,44 @@ import java.util.List;
 public class TaskController {
     private final TaskService taskService;
 
+    @GetMapping("/filter")
+    public ResponseEntity<List<Task>> getTasksByAuthorOrExecutor(
+            @RequestParam(required = false) String authorEmail,
+            @RequestParam(required = false) String executorEmail
+    ) {
+        List<Task> tasks = taskService.getTasksByAuthorOrExecutor(authorEmail, executorEmail);
+        return ResponseEntity.ok(tasks);
+    }
+
+    @PostMapping
+    public ResponseEntity<Task> createTask(@Valid @RequestBody Task task, Authentication authentication) {
+        String adminEmail = authentication.getName();
+        return ResponseEntity.ok(taskService.createTask(task, adminEmail));
+    }
     // Получить все задачи (Любой авторизованный пользователь)
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Task> updateTask(@PathVariable Long id,
+                                           @Valid @RequestBody Task updatedTask, Authentication authentication) {
+        String adminEmail = authentication.getName();
+        return ResponseEntity.ok(taskService.updateTask(id, updatedTask, adminEmail));
+    }
+
     @GetMapping
-    public List<Task> getAllTasks() {
-        return taskService.getAllTasks();
+    public Page<Task> getTasks(
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) Long executorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return taskService.getTasksFiltered(authorId, executorId, page, size);
     }
 
     // Получить задачу по ID (Любой авторизованный пользователь)
+
     @GetMapping("/{id}")
     public ResponseEntity<Task> getTaskById(@PathVariable Long id) {
-        return taskService.getTaskById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    // Создать задачу (Только ADMIN)
-    @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody Task task, Authentication authentication) {
-        String adminEmail = authentication.getName(); // Получаем email ADMIN из токена
-        return ResponseEntity.ok(taskService.createTask(task, adminEmail));
-    }
-
-    // Обновить задачу (Только ADMIN)
-    @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(@PathVariable Long id, @RequestBody Task updatedTask, Authentication authentication) {
-        String adminEmail = authentication.getName();
-        return ResponseEntity.ok(taskService.updateTask(id, updatedTask, adminEmail));
+        Task task = taskService.getTaskById(id); // Получаем задачу
+        return ResponseEntity.ok(task);
     }
 
     // Удалить задачу (Только ADMIN)
