@@ -32,7 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String token = getTokenFromRequest(request);
         if (token != null && jwtUtil.validateToken(token)) {
             Long userId = jwtUtil.extractUserId(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId.toString()); // Теперь загружаем через сервис
+            UserDetails userDetails = userDetailsService.loadUserByUsername(userId.toString());
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

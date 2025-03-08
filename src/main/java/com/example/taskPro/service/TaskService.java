@@ -1,6 +1,7 @@
 package com.example.taskPro.service;
 
 import com.example.taskPro.exception.EntityNotFoundException;
+import com.example.taskPro.model.Role;
 import com.example.taskPro.model.Task;
 import com.example.taskPro.model.TaskStatus;
 import com.example.taskPro.model.User;
@@ -13,17 +14,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
-
-    public List<Task> getAllTasks() {
-        return taskRepository.findAll();
-    }
 
     public Task getTaskById(Long id) {
         return taskRepository.findById(id)
@@ -32,8 +27,7 @@ public class TaskService {
 
     @Transactional
     public Task createTask(Task task, Long adminId) {
-        User admin = new User();
-        admin.setId(adminId);
+        User admin = validateAdmin(adminId);
         task.setAuthor(admin);
 
         if (task.getExecutor() != null) {
@@ -48,6 +42,8 @@ public class TaskService {
 
     @Transactional
     public Task updateTask(Long id, Task updatedTask, Long adminId) {
+        User admin = validateAdmin(adminId);
+
         return taskRepository.findById(id)
                 .map(existingTask -> {
                     existingTask.setTitle(updatedTask.getTitle());
@@ -55,9 +51,7 @@ public class TaskService {
                     existingTask.setStatus(updatedTask.getStatus());
                     existingTask.setPriority(updatedTask.getPriority());
 
-                    if (updatedTask.getExecutor() != null &&
-                            !updatedTask.getExecutor().getId().equals(existingTask.getExecutor() != null
-                                    ? existingTask.getExecutor().getId() : null)) {
+                    if (updatedTask.getExecutor() != null) {
                         User executor = userRepository.findById(updatedTask.getExecutor().getId())
                                 .orElseThrow(() -> new EntityNotFoundException(
                                         "Исполнитель с ID " + updatedTask.getExecutor().getId() + " не найден"));
@@ -71,14 +65,18 @@ public class TaskService {
 
     @Transactional
     public void deleteTask(Long id, Long adminId) {
+        User admin = validateAdmin(adminId);
+
         if (!taskRepository.existsById(id)) {
-            throw new RuntimeException("Задача с ID " + id + " не найдена");
+            throw new EntityNotFoundException("Задача с ID " + id + " не найдена");
         }
+
         taskRepository.deleteById(id);
     }
 
     @Transactional
     public Task assignExecutor(Long taskId, Long executorId, Long adminId) {
+        User admin = validateAdmin(adminId);
         User executor = userRepository.findById(executorId)
                 .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + executorId + " не найден"));
 
@@ -95,9 +93,9 @@ public class TaskService {
         return taskRepository.findById(taskId)
                 .map(task -> {
                     if (task.getExecutor() == null || !task.getExecutor().getId().equals(userId)) {
-                        throw new RuntimeException("Вы не являетесь исполнителем этой задачи");
+                        throw new RuntimeException("Вы не являетесь исполнителем этой задачи!");
                     }
-                    task.setStatus(TaskStatus.valueOf(status));
+                    task.setStatus(TaskStatus.valueOf(status.toUpperCase()));
                     return taskRepository.save(task);
                 })
                 .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
@@ -124,5 +122,16 @@ public class TaskService {
         } else {
             throw new IllegalArgumentException("Необходимо передать authorId или executorId");
         }
+    }
+
+    private User validateAdmin(Long adminId) {
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new EntityNotFoundException("Администратор с ID " + adminId + " не найден"));
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Только администратор может выполнять это действие!");
+        }
+
+        return admin;
     }
 }
