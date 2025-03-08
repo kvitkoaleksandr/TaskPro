@@ -15,9 +15,7 @@ import java.util.Date;
 public class JwtUtil {
     @Value("${jwt.secret}")
     private String secretKey;
-
-    private static final long EXPIRATION_TIME = 86400000; // 1 день
-
+    private static final long EXPIRATION_TIME = 86400000;
     private Key key;
 
     @PostConstruct
@@ -25,18 +23,23 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    public String generateToken(String email) {
+    public String generateToken(Long userId, String email) {
         return Jwts.builder()
                 .setSubject(email)
+                .claim("userId", userId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return Jwts.parserBuilder().setSigningKey(key).build()
-                .parseClaimsJws(token).getBody().getSubject();
+    public Long extractUserId(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("userId", Long.class);
     }
 
     public boolean validateToken(String token) {

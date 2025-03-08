@@ -1,5 +1,7 @@
 package com.example.taskPro.security;
 
+import com.example.taskPro.model.User;
+import com.example.taskPro.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,8 +31,9 @@ public class JwtFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String token = getTokenFromRequest(request);
         if (token != null && jwtUtil.validateToken(token)) {
-            String email = jwtUtil.extractEmail(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            Long userId = jwtUtil.extractUserId(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(userId.toString()); // Теперь загружаем через сервис
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

@@ -11,15 +11,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class TaskService {
     private final TaskRepository taskRepository;
-    private final UserRepository userRepository; // Добавили репозиторий пользователей
+    private final UserRepository userRepository;
 
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
@@ -30,37 +30,57 @@ public class TaskService {
                 .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + id + " не найдена"));
     }
 
-    public Task createTask(Task task, String adminEmail) {
-        User admin = userRepository.findByEmail(adminEmail)
-                .orElseThrow(() -> new RuntimeException("Администратор не найден"));
-
+    @Transactional
+    public Task createTask(Task task, Long adminId) {
+        User admin = new User();
+        admin.setId(adminId);
         task.setAuthor(admin);
+
+        if (task.getExecutor() != null) {
+            User executor = userRepository.findById(task.getExecutor().getId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Исполнитель с ID " + task.getExecutor().getId() + " не найден"));
+            task.setExecutor(executor);
+        }
+
         return taskRepository.save(task);
     }
 
-    public Task updateTask(Long id, Task updatedTask, String adminEmail) {
+    @Transactional
+    public Task updateTask(Long id, Task updatedTask, Long adminId) {
         return taskRepository.findById(id)
                 .map(existingTask -> {
                     existingTask.setTitle(updatedTask.getTitle());
                     existingTask.setDescription(updatedTask.getDescription());
                     existingTask.setStatus(updatedTask.getStatus());
                     existingTask.setPriority(updatedTask.getPriority());
-                    existingTask.setExecutor(updatedTask.getExecutor());
+
+                    if (updatedTask.getExecutor() != null &&
+                            !updatedTask.getExecutor().getId().equals(existingTask.getExecutor() != null
+                                    ? existingTask.getExecutor().getId() : null)) {
+                        User executor = userRepository.findById(updatedTask.getExecutor().getId())
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                        "Исполнитель с ID " + updatedTask.getExecutor().getId() + " не найден"));
+                        existingTask.setExecutor(executor);
+                    }
+
                     return taskRepository.save(existingTask);
                 })
-                .orElseThrow(() -> new RuntimeException("Задача с ID " + id + " не найдена"));
+                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + id + " не найдена"));
     }
 
-    public void deleteTask(Long id, String adminEmail) {
+    @Transactional
+    public void deleteTask(Long id, Long adminId) {
         if (!taskRepository.existsById(id)) {
             throw new RuntimeException("Задача с ID " + id + " не найдена");
         }
         taskRepository.deleteById(id);
     }
 
-    public Task assignExecutor(Long taskId, String executorEmail, String adminEmail) {
-        User executor = userRepository.findByEmail(executorEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Пользователь с email " + executorEmail + " не найден"));
+    @Transactional
+    public Task assignExecutor(Long taskId, Long executorId, Long adminId) {
+        User executor = userRepository.findById(executorId)
+                .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + executorId + " не найден"));
 
         return taskRepository.findById(taskId)
                 .map(task -> {
@@ -70,46 +90,39 @@ public class TaskService {
                 .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
-    public Task updateTaskStatus(Long taskId, String status, String userEmail) {
+    @Transactional
+    public Task updateTaskStatus(Long taskId, String status, Long userId) {
         return taskRepository.findById(taskId)
                 .map(task -> {
-                    if (!task.getExecutor().getEmail().equals(userEmail)) {
+                    if (task.getExecutor() == null || !task.getExecutor().getId().equals(userId)) {
                         throw new RuntimeException("Вы не являетесь исполнителем этой задачи");
                     }
-                    try {
-                        task.setStatus(TaskStatus.valueOf(status));
-                    } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("Некорректный статус задачи: " + status);
-                    }
+                    task.setStatus(TaskStatus.valueOf(status));
                     return taskRepository.save(task);
                 })
                 .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
-
-    public Task addComment(Long taskId, String comment, String userEmail) {
+    @Transactional
+    public Task addComment(Long taskId, String comment, Long userId) {
         return taskRepository.findById(taskId)
                 .map(task -> {
-                    task.getComments().add(userEmail + ": " + comment);
+                    task.getComments().add("User " + userId + ": " + comment);
                     return taskRepository.save(task);
                 })
-                .orElseThrow(() -> new RuntimeException("Задача с ID " + taskId + " не найдена"));
+                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
     public Page<Task> getTasksFiltered(Long authorId, Long executorId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return taskRepository.findByAuthorIdOrExecutorId(authorId, executorId, pageable);
-    }
-
-    public List<Task> getTasksByAuthorOrExecutor(String authorEmail, String executorEmail) {
-        if (authorEmail == null && executorEmail == null) {
-            throw new IllegalArgumentException("Должен быть указан либо автор, либо исполнитель");
+        if (authorId != null && executorId != null) {
+            return taskRepository.findByAuthorIdOrExecutorId(authorId, executorId, pageable);
+        } else if (authorId != null) {
+            return taskRepository.findByAuthorId(authorId, pageable);
+        } else if (executorId != null) {
+            return taskRepository.findByExecutorId(executorId, pageable);
+        } else {
+            throw new IllegalArgumentException("Необходимо передать authorId или executorId");
         }
-
-        if (authorEmail != null) {
-            return taskRepository.findByAuthorEmail(authorEmail);
-        }
-
-        return taskRepository.findByExecutorEmail(executorEmail);
     }
 }

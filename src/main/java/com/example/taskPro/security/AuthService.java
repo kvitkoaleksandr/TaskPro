@@ -33,7 +33,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
-        return jwtUtil.generateToken(user.getEmail());
+        return jwtUtil.generateToken(user.getId(), user.getEmail());
     }
 
     public String login(String email, String password) {
@@ -44,6 +44,6 @@ public class AuthService {
             throw new RuntimeException("Неверный email или пароль!");
         }
 
-        return jwtUtil.generateToken(user.getEmail());
+        return jwtUtil.generateToken(user.getId(), user.getEmail());
     }
 }
