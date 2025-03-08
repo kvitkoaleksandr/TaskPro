@@ -1,6 +1,8 @@
 package com.example.taskPro.service;
 
 import com.example.taskPro.exception.EntityNotFoundException;
+import com.example.taskPro.exception.TaskNotFoundException;
+import com.example.taskPro.exception.UnauthorizedActionException;
 import com.example.taskPro.model.Role;
 import com.example.taskPro.model.Task;
 import com.example.taskPro.model.TaskStatus;
@@ -8,6 +10,7 @@ import com.example.taskPro.model.User;
 import com.example.taskPro.repository.TaskRepository;
 import com.example.taskPro.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
@@ -32,8 +36,11 @@ public class TaskService {
 
         if (task.getExecutor() != null) {
             User executor = userRepository.findById(task.getExecutor().getId())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "Исполнитель с ID " + task.getExecutor().getId() + " не найден"));
+                    .orElseThrow(() -> {
+                        log.warn("Попытка назначения несуществующего исполнителя: {}", task.getExecutor().getId());
+                        return new EntityNotFoundException("Исполнитель с ID " + task.getExecutor()
+                                                                                     .getId() + " не найден");
+                    });
             task.setExecutor(executor);
         }
 
@@ -68,7 +75,8 @@ public class TaskService {
         User admin = validateAdmin(adminId);
 
         if (!taskRepository.existsById(id)) {
-            throw new EntityNotFoundException("Задача с ID " + id + " не найдена");
+            log.warn("Попытка удаления несуществующей задачи ID {}", id);
+            throw new TaskNotFoundException("Задача с ID " + id + " не найдена");
         }
 
         taskRepository.deleteById(id);
@@ -93,12 +101,12 @@ public class TaskService {
         return taskRepository.findById(taskId)
                 .map(task -> {
                     if (task.getExecutor() == null || !task.getExecutor().getId().equals(userId)) {
-                        throw new RuntimeException("Вы не являетесь исполнителем этой задачи!");
+                        throw new UnauthorizedActionException("Вы не являетесь исполнителем этой задачи!");
                     }
                     task.setStatus(TaskStatus.valueOf(status.toUpperCase()));
                     return taskRepository.save(task);
                 })
-                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException ("Задача с ID " + taskId + " не найдена"));
     }
 
     @Transactional
