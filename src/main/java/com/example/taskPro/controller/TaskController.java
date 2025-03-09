@@ -16,7 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Task API",
-     description = "Управление задачами (создание, редактирование, удаление, назначение исполнителя и изменение статуса)")
+     description = "Управление задачами (создание, редактирование, удаление, "
+                                        + "назначение исполнителя и изменение статуса)")
 @RestController
 @RequestMapping("/tasks")
 @RequiredArgsConstructor

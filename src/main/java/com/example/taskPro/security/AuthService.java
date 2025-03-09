@@ -1,5 +1,7 @@
 package com.example.taskPro.security;
 
+import com.example.taskPro.exception.InvalidUserRoleException;
+import com.example.taskPro.exception.UserAlreadyExistsException;
 import com.example.taskPro.exception.UserNotFoundException;
 import com.example.taskPro.model.Role;
 import com.example.taskPro.model.User;
@@ -21,7 +23,7 @@ public class AuthService {
     public String register(String email, String password, String role) {
         if (userRepository.findByEmail(email).isPresent()) {
             log.warn("Попытка регистрации с уже существующим email: {}", email);
-            throw new RuntimeException("Email уже используется!");
+            throw new UserAlreadyExistsException("Email уже используется!");
         }
 
         Role userRole;
@@ -29,7 +31,7 @@ public class AuthService {
             userRole = Role.valueOf(role.toUpperCase());
         } catch (IllegalArgumentException e) {
             log.error("Некорректная роль при регистрации: {}", role);
-            throw new RuntimeException("Некорректная роль: " + role);
+            throw new InvalidUserRoleException("Некорректная роль: " + role);
         }
 
         User user = User.builder()

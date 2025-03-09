@@ -1,8 +1,8 @@
 package com.example.taskPro.service;
 
-import com.example.taskPro.exception.EntityNotFoundException;
 import com.example.taskPro.exception.TaskNotFoundException;
 import com.example.taskPro.exception.UnauthorizedActionException;
+import com.example.taskPro.exception.UserNotFoundException;
 import com.example.taskPro.model.Role;
 import com.example.taskPro.model.Task;
 import com.example.taskPro.model.TaskStatus;
@@ -26,7 +26,7 @@ public class TaskService {
 
     public Task getTaskById(Long id) {
         return taskRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + id + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + id + " не найдена"));
     }
 
     @Transactional
@@ -38,8 +38,8 @@ public class TaskService {
             User executor = userRepository.findById(task.getExecutor().getId())
                     .orElseThrow(() -> {
                         log.warn("Попытка назначения несуществующего исполнителя: {}", task.getExecutor().getId());
-                        return new EntityNotFoundException("Исполнитель с ID " + task.getExecutor()
-                                                                                     .getId() + " не найден");
+                        return new UserNotFoundException("Исполнитель с ID " + task.getExecutor()
+                                .getId() + " не найден");
                     });
             task.setExecutor(executor);
         }
@@ -60,14 +60,14 @@ public class TaskService {
 
                     if (updatedTask.getExecutor() != null) {
                         User executor = userRepository.findById(updatedTask.getExecutor().getId())
-                                .orElseThrow(() -> new EntityNotFoundException(
+                                .orElseThrow(() -> new UserNotFoundException(
                                         "Исполнитель с ID " + updatedTask.getExecutor().getId() + " не найден"));
                         existingTask.setExecutor(executor);
                     }
 
                     return taskRepository.save(existingTask);
                 })
-                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + id + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + id + " не найдена"));
     }
 
     @Transactional
@@ -86,14 +86,14 @@ public class TaskService {
     public Task assignExecutor(Long taskId, Long executorId, Long adminId) {
         User admin = validateAdmin(adminId);
         User executor = userRepository.findById(executorId)
-                .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + executorId + " не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Пользователь с ID " + executorId + " не найден"));
 
         return taskRepository.findById(taskId)
                 .map(task -> {
                     task.setExecutor(executor);
                     return taskRepository.save(task);
                 })
-                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
     @Transactional
@@ -106,7 +106,7 @@ public class TaskService {
                     task.setStatus(TaskStatus.valueOf(status.toUpperCase()));
                     return taskRepository.save(task);
                 })
-                .orElseThrow(() -> new TaskNotFoundException ("Задача с ID " + taskId + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
     @Transactional
@@ -116,7 +116,7 @@ public class TaskService {
                     task.getComments().add("User " + userId + ": " + comment);
                     return taskRepository.save(task);
                 })
-                .orElseThrow(() -> new EntityNotFoundException("Задача с ID " + taskId + " не найдена"));
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
     }
 
     public Page<Task> getTasksFiltered(Long authorId, Long executorId, int page, int size) {
@@ -128,16 +128,17 @@ public class TaskService {
         } else if (executorId != null) {
             return taskRepository.findByExecutorId(executorId, pageable);
         } else {
-            throw new IllegalArgumentException("Необходимо передать authorId или executorId");
+            throw new IllegalArgumentException("Должен быть указан либо authorId, "
+                                              + "либо executorId, иначе фильтрация невозможна.");
         }
     }
 
     private User validateAdmin(Long adminId) {
         User admin = userRepository.findById(adminId)
-                .orElseThrow(() -> new EntityNotFoundException("Администратор с ID " + adminId + " не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Администратор с ID " + adminId + " не найден"));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new RuntimeException("Только администратор может выполнять это действие!");
+            throw new UnauthorizedActionException("Только администратор может выполнять это действие!");
         }
 
         return admin;
