@@ -1,7 +1,6 @@
 package com.example.taskPro.controller;
 
 import com.example.taskPro.model.Task;
-import com.example.taskPro.security.JwtUtil;
 import com.example.taskPro.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,14 +15,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Task API",
-     description = "Управление задачами (создание, редактирование, удаление, "
-                 + "назначение исполнителя и изменение статуса)")
+        description = "Управление задачами (создание, редактирование, удаление, "
+                + "назначение исполнителя и изменение статуса)")
 @RestController
 @RequestMapping("/tasks")
 @RequiredArgsConstructor
 public class TaskController {
     private final TaskService taskService;
-    private final JwtUtil jwtUtil;
 
     @Operation(summary = "Получить список задач",
             description = "Фильтрация по автору или исполнителю, поддерживается пагинация.")
@@ -51,8 +49,7 @@ public class TaskController {
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Task> createTask(@Valid @RequestBody Task task, Authentication authentication) {
-        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(taskService.createTask(task, adminId));
+        return ResponseEntity.ok(taskService.createTask(task, authentication));
     }
 
     @PatchMapping("/{id}/status")
@@ -66,8 +63,7 @@ public class TaskController {
     })
     public ResponseEntity<Task> updateTaskStatus(@PathVariable Long id,
                                                  @RequestParam String status, Authentication authentication) {
-        Long userId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(taskService.updateTaskStatus(id, status, userId));
+        return ResponseEntity.ok(taskService.updateTaskStatus(id, status, authentication));
     }
 
     @PatchMapping("/{id}/priority")
@@ -81,8 +77,7 @@ public class TaskController {
     })
     public ResponseEntity<Task> updateTaskPriority(@PathVariable Long id,
                                                    @RequestParam String priority, Authentication authentication) {
-        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(taskService.updateTaskPriority(id, priority, adminId));
+        return ResponseEntity.ok(taskService.updateTaskPriority(id, priority, authentication));
     }
 
     @Operation(summary = "Удалить задачу", description = "Администратор удаляет задачу.")
@@ -94,8 +89,7 @@ public class TaskController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id, Authentication authentication) {
-        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        taskService.deleteTask(id, adminId);
+        taskService.deleteTask(id, authentication);
         return ResponseEntity.noContent().build();
     }
 
@@ -133,14 +127,12 @@ public class TaskController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Task> assignExecutor(@PathVariable Long id,
                                                @RequestParam Long executorId, Authentication authentication) {
-        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(taskService.assignExecutor(id, executorId, adminId));
+        return ResponseEntity.ok(taskService.assignExecutor(id, executorId, authentication));
     }
 
     @PostMapping("/{id}/comments")
     public ResponseEntity<Task> addComment(@PathVariable Long id,
                                            @RequestParam String comment, Authentication authentication) {
-        Long userId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(taskService.addComment(id, comment, userId));
+        return ResponseEntity.ok(taskService.addComment(id, comment, authentication));
     }
 }

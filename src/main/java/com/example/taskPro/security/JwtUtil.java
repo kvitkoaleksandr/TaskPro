@@ -26,6 +26,7 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
+    // ✅ Генерация JWT токена
     public String generateToken(Long userId, String email) {
         return Jwts.builder()
                 .setSubject(email)
@@ -36,6 +37,7 @@ public class JwtUtil {
                 .compact();
     }
 
+    // ✅ Извлечение userId из токена
     public Long extractUserId(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
@@ -45,6 +47,7 @@ public class JwtUtil {
                 .get("userId", Long.class);
     }
 
+    // ✅ Валидация токена
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -54,12 +57,16 @@ public class JwtUtil {
         }
     }
 
-    public Long extractUserIdFromAuthentication(Authentication authentication) {
+    // ✅ Извлечение userId из Authentication (замена дублирующегося кода!)
+    public Long getEntityIdFromAuth(Authentication authentication) {
+        return validateAuthenticationAndExtractUser(authentication).getId();
+    }
+
+    // ✅ Универсальный метод проверки аутентификации и получения объекта пользователя
+    private User validateAuthenticationAndExtractUser(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new UserNotFoundException("Ошибка аутентификации: пользователь не найден!");
         }
-
-        User user = (User) authentication.getPrincipal();
-        return user.getId();
+        return (User) authentication.getPrincipal();
     }
 }

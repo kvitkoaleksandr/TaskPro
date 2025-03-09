@@ -4,20 +4,24 @@ import com.example.taskPro.exception.*;
 import com.example.taskPro.model.*;
 import com.example.taskPro.repository.TaskRepository;
 import com.example.taskPro.repository.UserRepository;
+import com.example.taskPro.service.interfaces.TaskServiceInterface;
+import com.example.taskPro.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class TaskService {
+public class TaskService implements TaskServiceInterface {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     public Task getTaskById(Long id) {
         return taskRepository.findById(id)
@@ -25,7 +29,8 @@ public class TaskService {
     }
 
     @Transactional
-    public Task createTask(Task task, Long adminId) {
+    public Task createTask(Task task, Authentication authentication) {
+        Long adminId = jwtUtil.getEntityIdFromAuth(authentication);
         User admin = validateAdmin(adminId);
         task.setAuthor(admin);
 
@@ -33,8 +38,7 @@ public class TaskService {
             User executor = userRepository.findById(task.getExecutor().getId())
                     .orElseThrow(() -> {
                         log.warn("Попытка назначения несуществующего исполнителя: {}", task.getExecutor().getId());
-                        return new UserNotFoundException("Исполнитель с ID " + task.getExecutor()
-                                .getId() + " не найден");
+                        return new UserNotFoundException("Исполнитель с ID " + task.getExecutor().getId() + " не найден");
                     });
             task.setExecutor(executor);
         }
@@ -43,7 +47,8 @@ public class TaskService {
     }
 
     @Transactional
-    public Task updateTask(Long id, Task updatedTask, Long adminId) {
+    public Task updateTask(Long id, Task updatedTask, Authentication authentication) {
+        Long adminId = jwtUtil.getEntityIdFromAuth(authentication);
         User admin = validateAdmin(adminId);
 
         return taskRepository.findById(id)
@@ -66,7 +71,8 @@ public class TaskService {
     }
 
     @Transactional
-    public void deleteTask(Long id, Long adminId) {
+    public void deleteTask(Long id, Authentication authentication) {
+        Long adminId = jwtUtil.getEntityIdFromAuth(authentication);
         User admin = validateAdmin(adminId);
 
         if (!taskRepository.existsById(id)) {
@@ -78,7 +84,8 @@ public class TaskService {
     }
 
     @Transactional
-    public Task assignExecutor(Long taskId, Long executorId, Long adminId) {
+    public Task assignExecutor(Long taskId, Long executorId, Authentication authentication) {
+        Long adminId = jwtUtil.getEntityIdFromAuth(authentication);
         User admin = validateAdmin(adminId);
         User executor = userRepository.findById(executorId)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь с ID " + executorId + " не найден"));
@@ -92,7 +99,8 @@ public class TaskService {
     }
 
     @Transactional
-    public Task updateTaskStatus(Long taskId, String status, Long userId) {
+    public Task updateTaskStatus(Long taskId, String status, Authentication authentication) {
+        Long userId = jwtUtil.getEntityIdFromAuth(authentication);
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
 
@@ -110,7 +118,8 @@ public class TaskService {
     }
 
     @Transactional
-    public Task updateTaskPriority(Long taskId, String priority, Long adminId) {
+    public Task updateTaskPriority(Long taskId, String priority, Authentication authentication) {
+        Long adminId = jwtUtil.getEntityIdFromAuth(authentication);
         validateAdmin(adminId);
 
         Task task = taskRepository.findById(taskId)
@@ -126,7 +135,9 @@ public class TaskService {
     }
 
     @Transactional
-    public Task addComment(Long taskId, String comment, Long userId) {
+    public Task addComment(Long taskId, String comment, Authentication authentication) {
+        Long userId = jwtUtil.getEntityIdFromAuth(authentication);
+
         return taskRepository.findById(taskId)
                 .map(task -> {
                     task.getComments().add("User " + userId + ": " + comment);
@@ -145,7 +156,7 @@ public class TaskService {
             return taskRepository.findByExecutorId(executorId, pageable);
         } else {
             throw new IllegalArgumentException("Должен быть указан либо authorId, "
-                                              + "либо executorId, иначе фильтрация невозможна.");
+                    + "либо executorId, иначе фильтрация невозможна.");
         }
     }
 

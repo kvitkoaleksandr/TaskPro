@@ -1,7 +1,7 @@
 package com.example.taskPro.controller;
 
 import com.example.taskPro.dto.securityDto.AuthRequestDto;
-import com.example.taskPro.security.AuthService;
+import com.example.taskPro.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -28,7 +28,7 @@ public class AuthController {
     })
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody AuthRequestDto request) {
-        return ResponseEntity.ok(authService.register(request.getEmail(), request.getPassword(), request.getRole()));
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @Operation(summary = "Авторизация пользователя", description = "Позволяет войти в систему и получить JWT-токен.")
@@ -38,6 +38,6 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody AuthRequestDto request) {
-        return ResponseEntity.ok(authService.login(request.getEmail(), request.getPassword()));
+        return ResponseEntity.ok(authService.login(request));
     }
 }

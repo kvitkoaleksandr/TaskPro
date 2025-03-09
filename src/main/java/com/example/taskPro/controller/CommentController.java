@@ -20,7 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CommentController {
     private final CommentService commentService;
-    private final JwtUtil jwtUtil;
 
     @Operation(summary = "Добавить комментарий", description = "Позволяет добавить комментарий к задаче.")
     @ApiResponses(value = {
@@ -34,9 +33,7 @@ public class CommentController {
             @PathVariable Long taskId,
             @RequestParam String content,
             Authentication authentication) {
-
-        Long userId = jwtUtil.extractUserIdFromAuthentication(authentication);
-        return ResponseEntity.ok(commentService.addComment(taskId, userId, content));
+        return ResponseEntity.ok(commentService.addComment(taskId, content, authentication));
     }
 
     @Operation(summary = "Получить комментарии задачи", description = "Позволяет получить все комментарии к задаче.")
