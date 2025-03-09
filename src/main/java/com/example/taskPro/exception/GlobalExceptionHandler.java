@@ -22,6 +22,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(InvalidTaskPriorityException.class)
+    public ResponseEntity<String> handleInvalidTaskPriorityException(InvalidTaskPriorityException ex) {
+        log.error("Ошибка при изменении приоритета задачи: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidUserRoleException.class)
     public ResponseEntity<String> handleInvalidUserRoleException(InvalidUserRoleException ex) {
         log.error("Ошибка выбора роли пользователя: {}", ex.getMessage());

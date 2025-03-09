@@ -1,7 +1,7 @@
 package com.example.taskPro.controller;
 
 import com.example.taskPro.model.Task;
-import com.example.taskPro.model.User;
+import com.example.taskPro.security.JwtUtil;
 import com.example.taskPro.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,15 +17,16 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Task API",
      description = "Управление задачами (создание, редактирование, удаление, "
-                                        + "назначение исполнителя и изменение статуса)")
+                 + "назначение исполнителя и изменение статуса)")
 @RestController
 @RequestMapping("/tasks")
 @RequiredArgsConstructor
 public class TaskController {
     private final TaskService taskService;
+    private final JwtUtil jwtUtil;
 
     @Operation(summary = "Получить список задач",
-               description = "Фильтрация по автору или исполнителю, поддерживается пагинация.")
+            description = "Фильтрация по автору или исполнителю, поддерживается пагинация.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Список задач успешно получен"),
             @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса"),
@@ -50,23 +51,38 @@ public class TaskController {
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Task> createTask(@Valid @RequestBody Task task, Authentication authentication) {
-        return ResponseEntity.ok(taskService.createTask(task, ((User) authentication.getPrincipal()).getId()));
+        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        return ResponseEntity.ok(taskService.createTask(task, adminId));
     }
 
-    @Operation(summary = "Обновить задачу", description = "Администратор обновляет данные задачи.")
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('USER')")
+    @Operation(summary = "Изменить статус задачи", description = "User может менять статус только своих задач.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Задача успешно обновлена"),
+            @ApiResponse(responseCode = "200", description = "Статус успешно обновлен"),
+            @ApiResponse(responseCode = "403", description = "Недостаточно прав для изменения статуса"),
             @ApiResponse(responseCode = "404", description = "Задача не найдена"),
-            @ApiResponse(responseCode = "403", description = "Недостаточно прав для обновления задачи")
+            @ApiResponse(responseCode = "400", description = "Некорректный статус")
     })
-    @PutMapping("/{id}")
+    public ResponseEntity<Task> updateTaskStatus(@PathVariable Long id,
+                                                 @RequestParam String status, Authentication authentication) {
+        Long userId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        return ResponseEntity.ok(taskService.updateTaskStatus(id, status, userId));
+    }
+
+    @PatchMapping("/{id}/priority")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<Task> updateTask(@PathVariable Long id,
-                                           @Valid @RequestBody Task updatedTask, Authentication authentication) {
-        return ResponseEntity.ok(taskService.updateTask(
-                id,
-                updatedTask,
-                ((User) authentication.getPrincipal()).getId()));
+    @Operation(summary = "Изменить приоритет задачи", description = "Admin может изменять приоритет любой задачи.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Приоритет успешно обновлен"),
+            @ApiResponse(responseCode = "403", description = "Недостаточно прав для изменения приоритета"),
+            @ApiResponse(responseCode = "404", description = "Задача не найдена"),
+            @ApiResponse(responseCode = "400", description = "Некорректный приоритет")
+    })
+    public ResponseEntity<Task> updateTaskPriority(@PathVariable Long id,
+                                                   @RequestParam String priority, Authentication authentication) {
+        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        return ResponseEntity.ok(taskService.updateTaskPriority(id, priority, adminId));
     }
 
     @Operation(summary = "Удалить задачу", description = "Администратор удаляет задачу.")
@@ -78,35 +94,53 @@ public class TaskController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id, Authentication authentication) {
-        taskService.deleteTask(id, ((User) authentication.getPrincipal()).getId());
+        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        taskService.deleteTask(id, adminId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Получить задачи автора",
+            description = "Позволяет администратору видеть свои созданные задачи.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Список задач успешно получен"),
+            @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса")
+    })
+    @GetMapping("/author/{authorId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Page<Task>> getTasksByAuthor(
+            @PathVariable Long authorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(taskService.getTasksByAuthor(authorId, page, size));
+    }
+
+    @Operation(summary = "Получить задачи исполнителя",
+            description = "Позволяет получить задачи, где пользователь указан исполнителем.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Список задач успешно получен"),
+            @ApiResponse(responseCode = "400", description = "Некорректные параметры запроса")
+    })
+    @GetMapping("/executor/{executorId}")
+    @PreAuthorize("hasAuthority('USER')")
+    public ResponseEntity<Page<Task>> getTasksByExecutor(
+            @PathVariable Long executorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(taskService.getTasksByExecutor(executorId, page, size));
     }
 
     @PatchMapping("/{id}/assign")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Task> assignExecutor(@PathVariable Long id,
                                                @RequestParam Long executorId, Authentication authentication) {
-        return ResponseEntity.ok(taskService.assignExecutor(
-                id,
-                executorId,
-                ((User) authentication.getPrincipal()).getId()));
-    }
-
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<Task> updateStatus(@PathVariable Long id,
-                                             @RequestParam String status, Authentication authentication) {
-        return ResponseEntity.ok(taskService.updateTaskStatus(
-                id,
-                status,
-                ((User) authentication.getPrincipal()).getId()));
+        Long adminId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        return ResponseEntity.ok(taskService.assignExecutor(id, executorId, adminId));
     }
 
     @PostMapping("/{id}/comments")
     public ResponseEntity<Task> addComment(@PathVariable Long id,
                                            @RequestParam String comment, Authentication authentication) {
-        return ResponseEntity.ok(taskService.addComment(
-                id,
-                comment,
-                ((User) authentication.getPrincipal()).getId()));
+        Long userId = jwtUtil.extractUserIdFromAuthentication(authentication);
+        return ResponseEntity.ok(taskService.addComment(id, comment, userId));
     }
 }

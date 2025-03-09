@@ -1,12 +1,7 @@
 package com.example.taskPro.service;
 
-import com.example.taskPro.exception.TaskNotFoundException;
-import com.example.taskPro.exception.UnauthorizedActionException;
-import com.example.taskPro.exception.UserNotFoundException;
-import com.example.taskPro.model.Role;
-import com.example.taskPro.model.Task;
-import com.example.taskPro.model.TaskStatus;
-import com.example.taskPro.model.User;
+import com.example.taskPro.exception.*;
+import com.example.taskPro.model.*;
 import com.example.taskPro.repository.TaskRepository;
 import com.example.taskPro.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -98,15 +93,36 @@ public class TaskService {
 
     @Transactional
     public Task updateTaskStatus(Long taskId, String status, Long userId) {
-        return taskRepository.findById(taskId)
-                .map(task -> {
-                    if (task.getExecutor() == null || !task.getExecutor().getId().equals(userId)) {
-                        throw new UnauthorizedActionException("Вы не являетесь исполнителем этой задачи!");
-                    }
-                    task.setStatus(TaskStatus.valueOf(status.toUpperCase()));
-                    return taskRepository.save(task);
-                })
+        Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
+
+        if (task.getExecutor() == null || !task.getExecutor().getId().equals(userId)) {
+            throw new UnauthorizedActionException("Вы не можете менять статус чужой задачи!");
+        }
+
+        try {
+            task.setStatus(TaskStatus.valueOf(status.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new InvalidTaskStatusException("Некорректный статус задачи: " + status);
+        }
+
+        return taskRepository.save(task);
+    }
+
+    @Transactional
+    public Task updateTaskPriority(Long taskId, String priority, Long adminId) {
+        validateAdmin(adminId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException("Задача с ID " + taskId + " не найдена"));
+
+        try {
+            task.setPriority(TaskPriority.valueOf(priority.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            throw new InvalidTaskPriorityException("Некорректный приоритет задачи: " + priority);
+        }
+
+        return taskRepository.save(task);
     }
 
     @Transactional
@@ -142,5 +158,15 @@ public class TaskService {
         }
 
         return admin;
+    }
+
+    public Page<Task> getTasksByAuthor(Long authorId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return taskRepository.findByAuthorId(authorId, pageable);
+    }
+
+    public Page<Task> getTasksByExecutor(Long executorId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return taskRepository.findByExecutorId(executorId, pageable);
     }
 }

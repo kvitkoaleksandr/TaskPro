@@ -37,10 +37,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/tasks/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/tasks/{id}").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/tasks/{id}/status").hasAuthority("USER")
+                        .requestMatchers(HttpMethod.PATCH, "/tasks/{id}/priority").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/tasks/{id}/comments").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/tasks/{id}/comments").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/tasks/{id}/assign").hasAuthority("ADMIN")
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**",
-                                                   "/v3/api-docs.yaml", "/swagger-ui.html").permitAll()
+                                "/v3/api-docs.yaml", "/swagger-ui.html").permitAll()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

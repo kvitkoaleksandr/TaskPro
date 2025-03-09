@@ -1,11 +1,14 @@
 package com.example.taskPro.security;
 
+import com.example.taskPro.exception.UserNotFoundException;
+import com.example.taskPro.model.User;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -49,5 +52,14 @@ public class JwtUtil {
         } catch (JwtException e) {
             return false;
         }
+    }
+
+    public Long extractUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new UserNotFoundException("Ошибка аутентификации: пользователь не найден!");
+        }
+
+        User user = (User) authentication.getPrincipal();
+        return user.getId();
     }
 }

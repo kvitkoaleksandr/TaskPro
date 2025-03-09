@@ -15,10 +15,10 @@ CREATE TABLE tasks (
     executor_id BIGINT REFERENCES users(id)
 );
 
-
 CREATE TABLE comments (
     id SERIAL PRIMARY KEY,
-    task_id INT NOT NULL REFERENCES tasks(id),
-    author_id INT NOT NULL REFERENCES users(id),
-    content TEXT NOT NULL
+    task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    author_id BIGINT NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );

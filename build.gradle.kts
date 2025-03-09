@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.2.3"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.flywaydb.flyway") version "9.22.3"
 }
 
 group = "com.example"
